@@ -20,26 +20,27 @@
       window.fromDate = oneHourAgo.toISOString();
       window.toDate = threeMonthsLater.toISOString();
 
-      // --- Moderation state in localStorage ---
+      // --- Moderation state: in-memory, loaded from excluded.json on startup ---
       // Model: exclude sources + reject individual events (by source_uid)
       // Everything from included sources that isn't rejected → shown in viewer
-      const STORAGE_KEY = 'wfhb_moderation';
+      var _state = { excludedSources: [], rejectedEvents: {} };
 
-      function loadState() {
-        try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-        } catch(e) { return {}; }
-      }
-
-      function saveState(state) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      }
+      // Load state from excluded.json in the repo (synchronous at startup)
+      try {
+        var stateXhr = new XMLHttpRequest();
+        stateXhr.open('GET', 'https://raw.githubusercontent.com/judell/wfhb/main/excluded.json?t=' + Date.now(), false);
+        stateXhr.send();
+        if (stateXhr.status === 200) {
+          var loaded = JSON.parse(stateXhr.responseText);
+          _state.excludedSources = loaded.excludedSources || [];
+          var rejObj = {};
+          (loaded.rejectedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
+          _state.rejectedEvents = rejObj;
+        }
+      } catch(e) {}
 
       function getState() {
-        const s = loadState();
-        if (!s.excludedSources) s.excludedSources = [];
-        if (!s.rejectedEvents) s.rejectedEvents = {};
-        return s;
+        return _state;
       }
 
       window.getExcludedSources = function() {
@@ -58,19 +59,16 @@
         } else {
           s.excludedSources.splice(idx, 1);
         }
-        saveState(s);
       };
 
       window.rejectEvent = function(sourceUid) {
         const s = getState();
         s.rejectedEvents[sourceUid] = true;
-        saveState(s);
       };
 
       window.unrejectEvent = function(sourceUid) {
         const s = getState();
         delete s.rejectedEvents[sourceUid];
-        saveState(s);
       };
 
       window.isRejected = function(sourceUid) {
