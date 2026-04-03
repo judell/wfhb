@@ -1,6 +1,10 @@
 {
-  "excludedSources": [],
+  "excludedSources": [
+    "Martinsville Arts Council",
+    "Martinsville Arts Council, Limestone Post"
+  ],
   "rejectedEvents": [
-    "20260403T153000Z-2214393@events.iu.edu"
+    "20260403T173000Z-2234266@events.iu.edu",
+    "ai1ec-147853-94587@wfhb.org"
   ]
 }
