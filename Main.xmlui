@@ -1,4 +1,4 @@
-<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}">
+<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}">
 
   <DataSource
     id="events"
@@ -24,6 +24,22 @@
     </VStack>
   </ModalDialog>
 
+  <!-- Settings dialog for GitHub token -->
+  <ModalDialog id="settingsDialog" title="Settings" var.tokenInput="{window.getGitHubToken()}">
+    <VStack gap="$space-3">
+      <Text fontSize="$fontSize-sm" value="GitHub personal access token (needs repo scope):" />
+      <TextBox
+        initialValue="{window.getGitHubToken()}"
+        placeholder="ghp_..."
+        onDidChange="(val) => tokenInput = val"
+      />
+      <HStack gap="$space-2">
+        <Button label="Save" onClick="() => { window.setGitHubToken(tokenInput); settingsDialog.close() }" />
+        <Button label="Cancel" variant="outlined" onClick="settingsDialog.close()" />
+      </HStack>
+    </VStack>
+  </ModalDialog>
+
   <VStack padding="$space-4" gap="$space-4">
 
     <HStack verticalAlignment="center" gap="$space-2">
@@ -32,8 +48,10 @@
     </HStack>
     <HStack verticalAlignment="center" gap="$space-3">
       <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Bloomington events • ' + (events.value ? events.value.length : 0) + ' total'}" />
-      <Button label="Export excluded.json" variant="outlined" size="sm" onClick="() => window.exportExcluded()" />
+      <Button label="Publish" size="sm" onClick="async () => { const msg = await window.publishExcluded(); publishStatus = msg; }" />
+      <Button label="Settings" variant="outlined" size="sm" onClick="settingsDialog.open()" />
     </HStack>
+    <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" />
 
     <!-- Tab bar -->
     <HStack gap="$space-2">

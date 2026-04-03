@@ -139,20 +139,68 @@
         });
       };
 
-      // Export excluded.json — download as file
-      window.exportExcluded = function() {
+      // GitHub token management
+      const GH_TOKEN_KEY = 'wfhb_github_token';
+      const GH_REPO = 'judell/wfhb';
+
+      window.getGitHubToken = function() {
+        return localStorage.getItem(GH_TOKEN_KEY) || '';
+      };
+
+      window.setGitHubToken = function(token) {
+        localStorage.setItem(GH_TOKEN_KEY, token.trim());
+      };
+
+      window.hasGitHubToken = function() {
+        return !!localStorage.getItem(GH_TOKEN_KEY);
+      };
+
+      // Publish excluded.json directly to GitHub
+      window.publishExcluded = async function() {
+        const token = window.getGitHubToken();
+        if (!token) {
+          return 'No GitHub token configured. Click Settings to add one.';
+        }
         const s = getState();
         const data = {
           excludedSources: s.excludedSources.sort(),
           rejectedEvents: Object.keys(s.rejectedEvents).sort()
         };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'excluded.json';
-        a.click();
-        URL.revokeObjectURL(url);
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2) + '\n')));
+        const headers = {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        };
+
+        // Get current file SHA (needed for update)
+        let sha = null;
+        try {
+          const getRes = await fetch('https://api.github.com/repos/' + GH_REPO + '/contents/excluded.json', { headers });
+          if (getRes.ok) {
+            const existing = await getRes.json();
+            sha = existing.sha;
+          }
+        } catch(e) {}
+
+        const body = {
+          message: 'Update exclusions',
+          content: content
+        };
+        if (sha) body.sha = sha;
+
+        const putRes = await fetch('https://api.github.com/repos/' + GH_REPO + '/contents/excluded.json', {
+          method: 'PUT',
+          headers: headers,
+          body: JSON.stringify(body)
+        });
+
+        if (putRes.ok) {
+          return 'Published! Changes will be live in ~1 minute.';
+        } else {
+          const err = await putRes.json();
+          return 'Error: ' + (err.message || putRes.status);
+        }
       };
 
       // Simple snippet
