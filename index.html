@@ -87,8 +87,7 @@
         const excSet = {};
         s.excludedSources.forEach(function(src) { excSet[src] = true; });
         const visible = [], rejected = [];
-        const allEvents = (events || []).concat(window._simulatedEvents);
-        allEvents.forEach(function(e) {
+        (events || []).forEach(function(e) {
           if (excSet[e.source]) return;
           if (s.rejectedEvents[e.source_uid]) rejected.push(e);
           else visible.push(e);
@@ -170,42 +169,6 @@
         text = text.replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
         if (text.length > 150) text = text.substring(0, 150) + '\u2026';
         return text;
-      };
-
-      // Simulate new events from nightly build
-      var _nextFakeId = 900000;
-      window._simulatedEvents = [];
-      window.simulateNewEvents = function() {
-        const fakeEvents = [
-          { title: 'Bloomington Symphony Orchestra: Spring Concert', location: 'Buskirk-Chumley Theater', source: 'Buskirk-Chumley Theater', category: 'Music', description: 'Join us for an evening of classical music featuring works by Dvorak and Brahms.', source_uid: 'sim-symphony-spring' },
-          { title: 'Farm to Table Dinner at Switchyard', location: 'Switchyard Park', source: 'Bloomington Parks & Rec', category: 'Food / Drink', description: 'A community dinner featuring locally sourced ingredients from Monroe County farms.', source_uid: 'sim-farm-table' },
-          { title: 'Poetry Open Mic Night', location: 'The Bishop Bar', source: 'WFHB Community Calendar', category: 'Performing Arts', description: 'Share your original poetry or just listen. All skill levels welcome.', source_uid: 'sim-poetry-mic' },
-          { title: 'Yoga in the Park', location: 'Bryan Park', source: 'Bloomington Parks & Rec', category: 'Sports / Fitness', description: 'Free outdoor yoga session for all levels. Bring your own mat.', source_uid: 'sim-yoga-park' },
-          { title: 'Makers Market Pop-Up', location: 'B-Line Trail Fountain Square', source: 'BloomingtonOnline.net', category: 'Shopping', description: 'Local artisans showcase handmade goods, crafts, and art.', source_uid: 'sim-makers-market' },
-          { title: 'IU Cinema: Documentary Screening', location: 'IU Cinema', source: 'IU Cinema', category: 'Film', description: 'Special screening followed by Q&A with the director.', source_uid: 'sim-iu-cinema-doc' },
-          { title: 'Trivia Night at Upland', location: 'Upland Brewing Co.', source: 'BloomingtonOnline.net', category: 'Social', description: 'Teams of up to 6. Prizes for top 3 finishers.', source_uid: 'sim-trivia-upland' },
-          { title: 'Kids Storytime: Dinosaur Adventures', location: 'Monroe County Public Library', source: 'Monroe County Public Library', category: 'Kids / Family', description: 'Interactive storytime for ages 3-7 with dinosaur crafts afterward.', source_uid: 'sim-storytime-dino' },
-          { title: 'Contra Dance with Live Band', location: 'Bloomington Unitarian Church', source: 'WFHB Community Calendar', category: 'Music', description: 'No experience needed. All dances taught. Beginners welcome at 7pm.', source_uid: 'sim-contra-dance' },
-          { title: 'Tech Meetup: AI Tools for Small Business', location: 'Dimension Mill', source: 'Dimension Mill', category: 'Technology', description: 'Learn how local businesses are using AI tools to streamline operations.', source_uid: 'sim-tech-meetup' },
-          { title: 'Gallery Opening: New Perspectives', location: 'Ivy Tech John Waldron Arts Center', source: 'Ivy Tech Waldron', category: 'Visual Arts', description: 'Opening reception for mixed media exhibition by regional artists.', source_uid: 'sim-gallery-opening' },
-          { title: 'Saturday Morning Bird Walk', location: 'Griffy Lake Nature Preserve', source: 'Bloomington Parks & Rec', category: 'Nature / Outdoors', description: 'Guided birding walk. Binoculars provided. Meet at the trailhead parking lot.', source_uid: 'sim-bird-walk' },
-        ];
-        const now = new Date();
-        fakeEvents.forEach(function(fe, i) {
-          const daysOut = 2 + Math.floor(i * 2.5);
-          const hour = 9 + (i % 12);
-          const start = new Date(now.getTime() + daysOut * 24 * 60 * 60 * 1000);
-          start.setHours(hour, 0, 0, 0);
-          const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-          fe.id = _nextFakeId++;
-          fe.start_time = start.toISOString();
-          fe.end_time = end.toISOString();
-          fe.url = '';
-          fe.image_url = null;
-          fe.all_day = false;
-          fe.city = 'bloomington';
-          window._simulatedEvents.push(fe);
-        });
       };
 
       // Format date for display

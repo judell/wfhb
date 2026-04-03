@@ -33,7 +33,6 @@
     <HStack verticalAlignment="center" gap="$space-3">
       <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Bloomington events • ' + (events.value ? events.value.length : 0) + ' total'}" />
       <Button label="Export excluded.json" variant="outlined" size="sm" onClick="() => window.exportExcluded()" />
-      <Button label="Simulate nightly build" variant="outlined" size="sm" onClick="() => { window.simulateNewEvents(); refreshKey = refreshKey + 1 }" />
     </HStack>
 
     <!-- Tab bar -->
