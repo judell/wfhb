@@ -113,28 +113,22 @@
         return _cached.excludedCount;
       };
 
-      window.getSourcesWithCountsReactive = function(events, _tick) {
-        const sources = window.getSourcesWithCounts(events);
-        sources.sort(function(a, b) {
-          if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-          return a.name.localeCompare(b.name);
-        });
-        return sources;
-      };
 
       window.paginate = function(arr, limit) {
         return (arr || []).slice(0, limit);
       };
 
-      // Get distinct sources from events with counts
-      window.getSourcesWithCounts = function(events) {
-        const counts = {};
-        (events || []).forEach(function(e) {
-          if (e.source) counts[e.source] = (counts[e.source] || 0) + 1;
+      // Merge source_names data with exclusion state
+      window.mergeSourceExclusions = function(sourceNames, _tick) {
+        if (!sourceNames) return [];
+        const result = sourceNames.map(function(s) {
+          return { name: s.name, event_count: s.event_count, excluded: window.isSourceExcluded(s.name) };
         });
-        return Object.keys(counts).sort().map(function(s) {
-          return { name: s, count: counts[s], excluded: window.isSourceExcluded(s) };
+        result.sort(function(a, b) {
+          if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
+          return a.name.localeCompare(b.name);
         });
+        return result;
       };
 
       // GitHub token management

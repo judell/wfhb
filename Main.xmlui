@@ -9,6 +9,14 @@
     }}"
   />
 
+  <DataSource
+    id="sourceNames"
+    url="{window.SUPABASE_URL + '/rest/v1/source_names?select=name,event_count&city=eq.bloomington&order=name.asc'}"
+    headers="{{
+      apikey: window.SUPABASE_KEY
+    }}"
+  />
+
   <!-- GET current file SHA, then PUT via window.saveToGitHub -->
   <APICall
     id="getSha"
@@ -89,14 +97,13 @@
     <!-- SOURCES TAB -->
     <VStack when="{tab === 'sources'}" gap="$space-2">
       <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
-      <Items data="{events.value ? window.getSourcesWithCountsReactive(events.value, refreshKey) : []}">
+      <Items data="{window.mergeSourceExclusions(sourceNames.value, refreshKey)}">
         <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
           <Checkbox
             initialValue="{!$item.excluded}"
             onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
           />
-          <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name}" />
-          <Text fontSize="$fontSize-sm" color="$color-text-tertiary" value="{'(' + $item.count + ')'}" />
+          <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
         </HStack>
       </Items>
     </VStack>
