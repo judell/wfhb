@@ -23,7 +23,7 @@
       // --- Moderation state: in-memory, loaded from excluded.json on startup ---
       // Model: exclude sources + reject individual events (by source_uid)
       // Everything from included sources that isn't rejected → shown in viewer
-      var _state = { excludedSources: [], rejectedEvents: {} };
+      var _state = { excludedSources: [], rejectedEvents: {}, lastReviewed: null, requireApproval: false };
 
       // Load state from excluded.json in the repo (synchronous at startup)
       try {
@@ -36,6 +36,8 @@
           var rejObj = {};
           (loaded.rejectedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
           _state.rejectedEvents = rejObj;
+          _state.lastReviewed = loaded.lastReviewed || null;
+          _state.requireApproval = !!loaded.requireApproval;
         }
       } catch(e) {}
 
@@ -73,6 +75,35 @@
 
       window.isRejected = function(sourceUid) {
         return !!getState().rejectedEvents[sourceUid];
+      };
+
+      window.getRequireApproval = function() {
+        return _state.requireApproval;
+      };
+
+      window.setRequireApproval = function(val) {
+        _state.requireApproval = !!val;
+      };
+
+      window.markAllReviewed = function() {
+        _state.lastReviewed = new Date().toISOString();
+      };
+
+      window.getLastReviewed = function() {
+        return _state.lastReviewed;
+      };
+
+      window.getNewEvents = function(events, _tick) {
+        const lr = _state.lastReviewed;
+        if (!lr) return events || [];
+        const s = getState();
+        const excSet = {};
+        s.excludedSources.forEach(function(src) { excSet[src] = true; });
+        return (events || []).filter(function(e) {
+          if (excSet[e.source]) return false;
+          if (s.rejectedEvents[e.source_uid]) return false;
+          return (e.created_at || e.start_time) > lr;
+        });
       };
 
       // Single-pass classifier
@@ -152,7 +183,9 @@
         const s = getState();
         const data = {
           excludedSources: s.excludedSources.sort(),
-          rejectedEvents: Object.keys(s.rejectedEvents).sort()
+          rejectedEvents: Object.keys(s.rejectedEvents).sort(),
+          lastReviewed: s.lastReviewed || null,
+          requireApproval: s.requireApproval
         };
         return btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2) + '\n')));
       };

@@ -1,8 +1,8 @@
-<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
+<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.newLimit="{50}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
 
   <DataSource
     id="events"
-    url="{window.SUPABASE_URL + '/rest/v1/events?select=id,title,start_time,end_time,location,description,url,source,source_uid,category,image_url,all_day&order=start_time.asc&limit=5000&city=eq.bloomington&start_time=gte.' + window.fromDate + '&start_time=lte.' + window.toDate}"
+    url="{window.SUPABASE_URL + '/rest/v1/events?select=id,title,start_time,end_time,location,description,url,source,source_uid,category,image_url,all_day,created_at&order=start_time.asc&limit=5000&city=eq.bloomington&start_time=gte.' + window.fromDate + '&start_time=lte.' + window.toDate}"
     headers="{{
       apikey: window.SUPABASE_KEY,
       'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -55,6 +55,13 @@
         placeholder="ghp_..."
         onDidChange="(val) => tokenInput = val"
       />
+      <HStack verticalAlignment="center" gap="$space-2" marginTop="$space-2">
+        <Checkbox
+          initialValue="{window.getRequireApproval()}"
+          onDidChange="(val) => window.setRequireApproval(val)"
+        />
+        <Text fontSize="$fontSize-sm" value="Require approval for new events (hide from viewer until reviewed)" />
+      </HStack>
       <HStack gap="$space-2">
         <Button label="Save" onClick="() => { window.setGitHubToken(tokenInput); settingsDialog.close() }" />
         <Button label="Cancel" variant="outlined" onClick="settingsDialog.close()" />
@@ -83,6 +90,11 @@
         onClick="tab = 'sources'"
       />
       <Button
+        label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length : 0) + ')'}"
+        variant="{tab === 'new' ? 'solid' : 'outlined'}"
+        onClick="tab = 'new'; newLimit = 50"
+      />
+      <Button
         label="{'Visible (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length : 0) + ')'}"
         variant="{tab === 'visible' ? 'solid' : 'outlined'}"
         onClick="tab = 'visible'; visibleLimit = 50"
@@ -106,6 +118,54 @@
           <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
         </HStack>
       </Items>
+    </VStack>
+
+    <!-- NEW TAB -->
+    <VStack when="{tab === 'new'}" gap="$space-2">
+      <HStack verticalAlignment="center" gap="$space-3">
+        <Button
+          when="{window.getRequireApproval()}"
+          label="Mark all reviewed"
+          variant="outlined"
+          size="sm"
+          enabled="{events.value && window.getNewEvents(events.value, refreshKey).length > 0}"
+          onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1 }"
+        />
+        <Text when="{window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Last reviewed: ' + window.formatDateTime(window.getLastReviewed(), false)}" />
+        <Text when="{!window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="Not yet reviewed." />
+        <Text when="{!window.getRequireApproval()}" fontSize="$fontSize-sm" color="$color-text-tertiary" value="(New events show in viewer immediately. Enable approval in Settings to require review.)" />
+      </HStack>
+      <Text when="{window.getLastReviewed() && events.value && window.getNewEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No new events since last review." />
+      <Items data="{events.value ? window.paginate(window.getNewEvents(events.value, refreshKey), newLimit) : []}">
+        <Card padding="$space-3" marginBottom="$space-2">
+          <VStack gap="$space-1">
+            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+            <Link when="{$item.url}" to="{$item.url}" target="_blank">
+              <Text fontWeight="600" value="{$item.title}" />
+            </Link>
+            <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
+            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+            <Text
+              when="{$item.description || $item.image_url}"
+              fontSize="$fontSize-sm"
+              color="$color-text-secondary"
+              cursor="pointer"
+              onClick="detailDialog.open($item)"
+              value="{window.getSnippet($item.description) + ' \u24d8'}"
+            />
+            <HStack gap="$space-2" marginTop="$space-2">
+              <Button label="Reject" variant="outlined" size="sm" onClick="() => { window.rejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+            </HStack>
+          </VStack>
+        </Card>
+      </Items>
+      <Button
+        when="{events.value && window.getNewEvents(events.value, refreshKey).length > newLimit}"
+        label="{'Show more (showing ' + newLimit + ' of ' + window.getNewEvents(events.value, refreshKey).length + ')'}"
+        variant="outlined"
+        onClick="newLimit = newLimit + 50"
+      />
     </VStack>
 
     <!-- VISIBLE TAB -->
