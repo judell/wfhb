@@ -1,0 +1,133 @@
+<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}">
+
+  <DataSource
+    id="events"
+    url="{window.SUPABASE_URL + '/rest/v1/events?select=id,title,start_time,end_time,location,description,url,source,source_uid,category,image_url,all_day&order=start_time.asc&limit=5000&city=eq.bloomington&start_time=gte.' + window.fromDate + '&start_time=lte.' + window.toDate}"
+    headers="{{
+      apikey: window.SUPABASE_KEY,
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }}"
+  />
+
+  <!-- Detail dialog -->
+  <ModalDialog id="detailDialog">
+    <VStack gap="$space-2">
+      <Text fontWeight="600" fontSize="$fontSize-lg" value="{$param.title}" />
+      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($param.start_time, $param.all_day)}" />
+      <Text when="{$param.location}" fontSize="$fontSize-sm" value="{$param.location}" />
+      <Text when="{$param.source}" fontSize="$fontSize-sm" fontStyle="italic" color="$color-text-tertiary" value="{$param.source}" />
+      <Image when="{$param.image_url}" src="{$param.image_url}" width="100%" fit="contain" />
+      <Markdown when="{$param.description}" fontSize="$fontSize-sm" content="{$param.description}" />
+      <Link when="{$param.url}" to="{$param.url}" target="_blank">
+        <Text fontSize="$fontSize-sm" value="Event link" />
+      </Link>
+    </VStack>
+  </ModalDialog>
+
+  <VStack padding="$space-4" gap="$space-4">
+
+    <HStack verticalAlignment="center" gap="$space-2">
+      <Text variant="header" value="WFHB Event Moderator" />
+      <Inspector />
+    </HStack>
+    <HStack verticalAlignment="center" gap="$space-3">
+      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Bloomington events • ' + (events.value ? events.value.length : 0) + ' total'}" />
+      <Button label="Export excluded.json" variant="outlined" size="sm" onClick="() => window.exportExcluded()" />
+      <Button label="Simulate nightly build" variant="outlined" size="sm" onClick="() => { window.simulateNewEvents(); refreshKey = refreshKey + 1 }" />
+    </HStack>
+
+    <!-- Tab bar -->
+    <HStack gap="$space-2">
+      <Button
+        label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}"
+        variant="{tab === 'sources' ? 'solid' : 'outlined'}"
+        onClick="tab = 'sources'"
+      />
+      <Button
+        label="{'Visible (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length : 0) + ')'}"
+        variant="{tab === 'visible' ? 'solid' : 'outlined'}"
+        onClick="tab = 'visible'; visibleLimit = 50"
+      />
+      <Button
+        label="{'Rejected (' + (events.value ? window.getRejectedEvents(events.value, refreshKey).length : 0) + ')'}"
+        variant="{tab === 'rejected' ? 'solid' : 'outlined'}"
+        onClick="tab = 'rejected'; rejectedLimit = 50"
+      />
+    </HStack>
+
+    <!-- SOURCES TAB -->
+    <VStack when="{tab === 'sources'}" gap="$space-2">
+      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
+      <Items data="{events.value ? window.getSourcesWithCountsReactive(events.value, refreshKey) : []}">
+        <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
+          <Checkbox
+            initialValue="{!$item.excluded}"
+            onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
+          />
+          <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name}" />
+          <Text fontSize="$fontSize-sm" color="$color-text-tertiary" value="{'(' + $item.count + ')'}" />
+        </HStack>
+      </Items>
+    </VStack>
+
+    <!-- VISIBLE TAB -->
+    <VStack when="{tab === 'visible'}" gap="$space-2">
+      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="Events that will appear in the viewer. Reject individual events to hide them." />
+      <Items data="{events.value ? window.paginate(window.getVisibleEvents(events.value, refreshKey), visibleLimit) : []}">
+        <Card padding="$space-3" marginBottom="$space-2">
+          <VStack gap="$space-1">
+            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+            <Link when="{$item.url}" to="{$item.url}" target="_blank">
+              <Text fontWeight="600" value="{$item.title}" />
+            </Link>
+            <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
+            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+            <Text
+              when="{$item.description || $item.image_url}"
+              fontSize="$fontSize-sm"
+              color="$color-text-secondary"
+              cursor="pointer"
+              onClick="detailDialog.open($item)"
+              value="{window.getSnippet($item.description) + ' \u24d8'}"
+            />
+            <HStack gap="$space-2" marginTop="$space-2">
+              <Button label="Reject" variant="outlined" size="sm" onClick="() => { window.rejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+            </HStack>
+          </VStack>
+        </Card>
+      </Items>
+      <Button
+        when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > visibleLimit}"
+        label="{'Show more (showing ' + visibleLimit + ' of ' + window.getVisibleEvents(events.value, refreshKey).length + ')'}"
+        variant="outlined"
+        onClick="visibleLimit = visibleLimit + 50"
+      />
+    </VStack>
+
+    <!-- REJECTED TAB -->
+    <VStack when="{tab === 'rejected'}" gap="$space-2">
+      <Text when="{events.value && window.getRejectedEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No rejected events." />
+      <Items data="{events.value ? window.paginate(window.getRejectedEvents(events.value, refreshKey), rejectedLimit) : []}">
+        <Card padding="$space-3" marginBottom="$space-2">
+          <VStack gap="$space-1">
+            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+            <Text fontWeight="600" value="{$item.title}" />
+            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+            <HStack gap="$space-2" marginTop="$space-2">
+              <Button label="Restore" variant="outlined" size="sm" onClick="() => { window.unrejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+            </HStack>
+          </VStack>
+        </Card>
+      </Items>
+      <Button
+        when="{events.value && window.getRejectedEvents(events.value, refreshKey).length > rejectedLimit}"
+        label="{'Show more (showing ' + rejectedLimit + ' of ' + window.getRejectedEvents(events.value, refreshKey).length + ')'}"
+        variant="outlined"
+        onClick="rejectedLimit = rejectedLimit + 50"
+      />
+    </VStack>
+
+  </VStack>
+</App>
