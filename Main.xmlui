@@ -1,4 +1,4 @@
-<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}">
+<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
 
   <DataSource
     id="events"
@@ -8,6 +8,20 @@
       'Cache-Control': 'no-cache, no-store, must-revalidate'
     }}"
   />
+
+  <!-- GET current file SHA, then PUT via window.saveToGitHub -->
+  <APICall
+    id="getSha"
+    method="get"
+    url="{'https://api.github.com/repos/judell/wfhb/contents/excluded.json'}"
+    headers="{{
+      Authorization: 'Bearer ' + window.getGitHubToken(),
+      Accept: 'application/vnd.github.v3+json'
+    }}"
+  >
+    <event name="success" value="(result) => { window.saveToGitHub(result.sha, (msg) => publishStatus = msg) }" />
+    <event name="error" value="() => { window.saveToGitHub('', (msg) => publishStatus = msg) }" />
+  </APICall>
 
   <!-- Detail dialog -->
   <ModalDialog id="detailDialog">
@@ -48,7 +62,7 @@
     </HStack>
     <HStack verticalAlignment="center" gap="$space-3">
       <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Bloomington events • ' + (events.value ? events.value.length : 0) + ' total'}" />
-      <Button label="Publish" size="sm" onClick="async () => { const msg = await window.publishExcluded(); publishStatus = msg; }" />
+      <Button label="Save choices" size="sm" onClick="() => { publishStatus = 'Saving...'; getSha.execute() }" />
       <Button label="Settings" variant="outlined" size="sm" onClick="settingsDialog.open()" />
     </HStack>
     <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" />
