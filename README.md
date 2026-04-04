@@ -3,11 +3,6 @@
 A tool for curating which Bloomington community calendar events appear on the WFHB website.
 
 
-
-https://github.com/user-attachments/assets/549d3b26-d7dd-4906-b497-9d2f0761e38f
-
-
-
 ## How it works
 
 The [Bloomington community calendar](https://judell.github.io/community-calendar/xmlui/index.html?city=bloomington) aggregates events from ~75 local sources. This moderator app lets you choose which of those sources and events to show on your site.
@@ -60,3 +55,7 @@ The token is stored in your browser's localStorage. You only need to do this onc
 - **Multiple moderators**: anyone with a GitHub token that has write access to this repo can save choices. The last save wins — coordinate if multiple people moderate.
 - **Click the info icon** (circled i) on any event to see its full description before deciding.
 - **Rejected events age out.** Once a rejected event's date passes, it drops out of the results automatically.
+
+## See it in action 
+
+https://github.com/user-attachments/assets/549d3b26-d7dd-4906-b497-9d2f0761e38f
