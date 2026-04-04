@@ -2,7 +2,7 @@
 
   <DataSource
     id="events"
-    url="{window.SUPABASE_URL + '/rest/v1/events?select=id,title,start_time,end_time,location,description,url,source,source_uid,category,image_url,all_day,created_at&order=start_time.asc&limit=5000&city=eq.bloomington&start_time=gte.' + window.fromDate + '&start_time=lte.' + window.toDate}"
+    url="{window.SUPABASE_URL + '/rest/v1/events?select=id,title,start_time,end_time,location,description,url,source,source_uid,category,image_url,all_day,created_at&order=start_time.asc&city=eq.bloomington&start_time=gte.' + window.fromDate + '&start_time=lte.' + window.toDate}"
     headers="{{
       apikey: window.SUPABASE_KEY,
       'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -231,7 +231,7 @@
       </Items>
       <Button
         when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > visibleLimit}"
-        label="{'Show more (showing ' + visibleLimit + ' of ' + window.getVisibleEvents(events.value, refreshKey).length + ')'}"
+        label="Show more"
         variant="outlined"
         onClick="visibleLimit = visibleLimit + 50"
       />
