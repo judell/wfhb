@@ -2,6 +2,12 @@
 
 A tool for curating which Bloomington community calendar events appear on the WFHB website.
 
+
+
+https://github.com/user-attachments/assets/549d3b26-d7dd-4906-b497-9d2f0761e38f
+
+
+
 ## How it works
 
 The [Bloomington community calendar](https://judell.github.io/community-calendar/xmlui/index.html?city=bloomington) aggregates events from ~75 local sources. This moderator app lets you choose which of those sources and events to show on your site.
