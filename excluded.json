@@ -1,8 +1,5 @@
 {
-  "excludedSources": [
-    "Art Sanctuary of Indiana",
-    "B-Square: Government"
-  ],
+  "excludedSources": [],
   "rejectedEvents": [
     "20260402T040000Z-2165392@events.iu.edu__20260404",
     "20260402T040000Z-2236725@events.iu.edu__20260404",
