@@ -6,6 +6,7 @@
     "xsVerboseLogMax": 200
   },
   "resources": {
-    "icon.l-settings": "icons/l-settings.svg"
+    "icon.l-settings": "icons/l-settings.svg",
+    "icon.message-circle-question": "icons/message-circle-question.svg"
   }
 }

@@ -75,6 +75,21 @@
     </VStack>
   </ModalDialog>
 
+  <!-- Help dialog -->
+  <DataSource
+    id="readmeData"
+    url="{'https://api.github.com/repos/judell/wfhb/readme'}"
+    headers="{{
+      Accept: 'application/vnd.github.v3+json'
+    }}"
+  />
+
+  <Theme maxWidth-ModalDialog="90%" maxHeight-ModalDialog="90vh">
+  <ModalDialog id="helpDialog" showCloseButton="true">
+    <Markdown when="{readmeData.value}" content="{window.decodeBase64(readmeData.value.content)}" fontSize="$fontSize-sm" lineHeight="1.3" padding="0" margin="0" />
+  </ModalDialog>
+  </Theme>
+
   <!-- Confirm mark reviewed -->
   <ModalDialog id="confirmReviewDialog" title="Confirm">
     <VStack gap="$space-3">
@@ -90,14 +105,16 @@
 
     <HStack verticalAlignment="center" gap="$space-2">
       <Text variant="header" value="WFHB Event Moderator" />
-      <Icon name="l-settings" tooltip="Settings" width="20px" height="20px" color="$color-surface-500" cursor="pointer" onClick="settingsDialog.open()" />
-      <Inspector />
+      <Icon name="l-settings" tooltip="Settings" aria-label="Settings" width="20px" height="20px" color="$color-surface-500" cursor="pointer" onClick="settingsDialog.open()" />
+      <Icon name="message-circle-question" tooltip="Help" aria-label="Help" width="20px" height="20px" color="$color-surface-500" cursor="pointer" onClick="helpDialog.open()" />
+      <Inspector aria-label="Inspector" />
     </HStack>
     <HStack verticalAlignment="center" gap="$space-3" wrapContent="true">
       <Button label="Save choices" size="sm" enabled="{unsavedChanges}" onClick="() => { publishStatus = 'Saving...'; getSha.execute() }" />
       <Text when="{unsavedChanges}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{changeSummary}" />
     </HStack>
-    <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" />
+    <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" animation="fadeout" animationOptions="{{ duration: 3000, delay: 1000, fillMode: 'forwards' }}" />
+    <ChangeListener listenTo="{publishStatus}" debounceWaitInMs="{4000}" onDidChange="() => { if (publishStatus) publishStatus = '' }" />
 
     <!-- Tab bar -->
     <HStack gap="$space-2" wrapContent="true">

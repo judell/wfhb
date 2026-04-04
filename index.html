@@ -202,14 +202,9 @@
       // Merge source_names data with exclusion state
       window.mergeSourceExclusions = function(sourceNames, _tick) {
         if (!sourceNames) return [];
-        const result = sourceNames.map(function(s) {
+        return sourceNames.map(function(s) {
           return { name: s.name, event_count: s.event_count, excluded: window.isSourceExcluded(s.name) };
         });
-        result.sort(function(a, b) {
-          if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-          return a.name.localeCompare(b.name);
-        });
-        return result;
       };
 
       // GitHub token management
@@ -278,6 +273,12 @@
         text = text.replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
         if (text.length > 150) text = text.substring(0, 150) + '\u2026';
         return text;
+      };
+
+      // Decode base64 GitHub API content
+      window.decodeBase64 = function(b64) {
+        if (!b64) return '';
+        return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))));
       };
 
       // Format date for display
