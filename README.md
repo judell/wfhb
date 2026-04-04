@@ -9,7 +9,7 @@ The [Bloomington community calendar](https://judell.github.io/community-calendar
 **Your embedded viewer URL:**
 
 ```
-https://judell.github.io/community-calendar/xmlui/index.html?city=bloomington&embed=true&exclude=https://raw.githubusercontent.com/judell/wfhb/main/excluded.json
+https://judell.github.io/community-calendar/xmlui/index.html?city=bloomington&embed=true&exclude=https://api.github.com/repos/judell/wfhb/contents/excluded.json
 ```
 
 That URL displays the community calendar filtered by your choices. Embed it on your site with an iframe.

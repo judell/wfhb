@@ -17,6 +17,12 @@
     }}"
   />
 
+  <!-- Track unsaved changes: refreshKey increments on every mutation -->
+  <ChangeListener
+    listenTo="{refreshKey}"
+    onDidChange="() => { unsavedChanges = window.hasUnsavedChanges(); changeSummary = window.getChangeSummary() }"
+  />
+
   <!-- GET current file SHA, then PUT via window.saveToGitHub -->
   <APICall
     id="getSha"
@@ -27,8 +33,8 @@
       Accept: 'application/vnd.github.v3+json'
     }}"
   >
-    <event name="success" value="(result) => { window.saveToGitHub(result.sha, (msg) => publishStatus = msg) }" />
-    <event name="error" value="() => { window.saveToGitHub('', (msg) => publishStatus = msg) }" />
+    <event name="success" value="(result) => { window.saveToGitHub(result.sha, (msg) => { publishStatus = msg; if (msg.indexOf('Saved') === 0) { window.markSaved(); unsavedChanges = false; changeSummary = '' } }) }" />
+    <event name="error" value="() => { window.saveToGitHub('', (msg) => { publishStatus = msg; if (msg.indexOf('Saved') === 0) { window.markSaved(); unsavedChanges = false; changeSummary = '' } }) }" />
   </APICall>
 
   <!-- Detail dialog -->
@@ -69,21 +75,32 @@
     </VStack>
   </ModalDialog>
 
-  <VStack padding="$space-4" gap="$space-4">
+  <!-- Confirm mark reviewed -->
+  <ModalDialog id="confirmReviewDialog" title="Confirm">
+    <VStack gap="$space-3">
+      <Text fontSize="$fontSize-sm" value="Mark all new events as reviewed? This will make them visible in the viewer." />
+      <HStack gap="$space-2">
+        <Button label="Yes, mark reviewed" onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1; confirmReviewDialog.close() }" />
+        <Button label="Cancel" variant="outlined" onClick="confirmReviewDialog.close()" />
+      </HStack>
+    </VStack>
+  </ModalDialog>
+
+  <VStack padding="$space-4" gap="$space-4" maxWidth="800px" width="100%">
 
     <HStack verticalAlignment="center" gap="$space-2">
       <Text variant="header" value="WFHB Event Moderator" />
+      <Icon name="l-settings" tooltip="Settings" width="20px" height="20px" color="$color-surface-500" cursor="pointer" onClick="settingsDialog.open()" />
       <Inspector />
     </HStack>
-    <HStack verticalAlignment="center" gap="$space-3">
-      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Bloomington events • ' + (events.value ? events.value.length : 0) + ' total'}" />
-      <Button label="Save choices" size="sm" onClick="() => { publishStatus = 'Saving...'; getSha.execute() }" />
-      <Button label="Settings" variant="outlined" size="sm" onClick="settingsDialog.open()" />
+    <HStack verticalAlignment="center" gap="$space-3" wrapContent="true">
+      <Button label="Save choices" size="sm" enabled="{unsavedChanges}" onClick="() => { publishStatus = 'Saving...'; getSha.execute() }" />
+      <Text when="{unsavedChanges}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{changeSummary}" />
     </HStack>
     <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" />
 
     <!-- Tab bar -->
-    <HStack gap="$space-2">
+    <HStack gap="$space-2" wrapContent="true">
       <Button
         label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}"
         variant="{tab === 'sources' ? 'solid' : 'outlined'}"
@@ -129,7 +146,7 @@
           variant="outlined"
           size="sm"
           enabled="{events.value && window.getNewEvents(events.value, refreshKey).length > 0}"
-          onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1 }"
+          onClick="confirmReviewDialog.open()"
         />
         <Text when="{window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Last reviewed: ' + window.formatDateTime(window.getLastReviewed(), false)}" />
         <Text when="{!window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="Not yet reviewed." />
@@ -141,7 +158,7 @@
           <VStack gap="$space-1">
             <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
             <Link when="{$item.url}" to="{$item.url}" target="_blank">
-              <Text fontWeight="600" value="{$item.title}" />
+              <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
             </Link>
             <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
             <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
@@ -176,7 +193,7 @@
           <VStack gap="$space-1">
             <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
             <Link when="{$item.url}" to="{$item.url}" target="_blank">
-              <Text fontWeight="600" value="{$item.title}" />
+              <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
             </Link>
             <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
             <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
@@ -210,7 +227,7 @@
         <Card padding="$space-3" marginBottom="$space-2">
           <VStack gap="$space-1">
             <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
-            <Text fontWeight="600" value="{$item.title}" />
+            <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
             <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
             <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
             <HStack gap="$space-2" marginTop="$space-2">

@@ -25,13 +25,15 @@
       // Everything from included sources that isn't rejected → shown in viewer
       var _state = { excludedSources: [], rejectedEvents: {}, lastReviewed: null, requireApproval: false };
 
-      // Load state from excluded.json in the repo (synchronous at startup)
+      // Load state from excluded.json via GitHub API (no CDN caching)
       try {
         var stateXhr = new XMLHttpRequest();
-        stateXhr.open('GET', 'https://raw.githubusercontent.com/judell/wfhb/main/excluded.json?t=' + Date.now(), false);
+        stateXhr.open('GET', 'https://api.github.com/repos/judell/wfhb/contents/excluded.json', false);
+        stateXhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
         stateXhr.send();
         if (stateXhr.status === 200) {
-          var loaded = JSON.parse(stateXhr.responseText);
+          var apiResult = JSON.parse(stateXhr.responseText);
+          var loaded = JSON.parse(decodeURIComponent(escape(atob(apiResult.content))));
           _state.excludedSources = loaded.excludedSources || [];
           var rejObj = {};
           (loaded.rejectedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
@@ -75,6 +77,54 @@
 
       window.isRejected = function(sourceUid) {
         return !!getState().rejectedEvents[sourceUid];
+      };
+
+      // Change detection: snapshot on load, compare current state
+      var _savedSnapshot = JSON.stringify([
+        _state.excludedSources.slice().sort(),
+        Object.keys(_state.rejectedEvents).sort(),
+        _state.lastReviewed,
+        _state.requireApproval
+      ]);
+
+      window.hasUnsavedChanges = function(_tick) {
+        return JSON.stringify([
+          _state.excludedSources.slice().sort(),
+          Object.keys(_state.rejectedEvents).sort(),
+          _state.lastReviewed,
+          _state.requireApproval
+        ]) !== _savedSnapshot;
+      };
+
+      window.getChangeSummary = function() {
+        const saved = JSON.parse(_savedSnapshot);
+        const cur = [
+          _state.excludedSources.slice().sort(),
+          Object.keys(_state.rejectedEvents).sort(),
+          _state.lastReviewed,
+          _state.requireApproval
+        ];
+        const parts = [];
+        const addedSources = cur[0].filter(function(s) { return saved[0].indexOf(s) === -1; });
+        const removedSources = saved[0].filter(function(s) { return cur[0].indexOf(s) === -1; });
+        if (addedSources.length) parts.push(addedSources.length + ' source' + (addedSources.length > 1 ? 's' : '') + ' excluded');
+        if (removedSources.length) parts.push(removedSources.length + ' source' + (removedSources.length > 1 ? 's' : '') + ' re-included');
+        const addedRej = cur[1].filter(function(s) { return saved[1].indexOf(s) === -1; });
+        const removedRej = saved[1].filter(function(s) { return cur[1].indexOf(s) === -1; });
+        if (addedRej.length) parts.push(addedRej.length + ' event' + (addedRej.length > 1 ? 's' : '') + ' rejected');
+        if (removedRej.length) parts.push(removedRej.length + ' event' + (removedRej.length > 1 ? 's' : '') + ' restored');
+        if (cur[2] !== saved[2]) parts.push('review timestamp updated');
+        if (cur[3] !== saved[3]) parts.push('approval setting changed');
+        return parts.join(', ');
+      };
+
+      window.markSaved = function() {
+        _savedSnapshot = JSON.stringify([
+          _state.excludedSources.slice().sort(),
+          Object.keys(_state.rejectedEvents).sort(),
+          _state.lastReviewed,
+          _state.requireApproval
+        ]);
       };
 
       window.getRequireApproval = function() {
@@ -207,7 +257,7 @@
           },
           body: JSON.stringify(body)
         }).then(function(res) {
-          if (res.ok) callback('Saved! Changes will be live in ~1 minute.');
+          if (res.ok) callback('Saved!');
           else res.json().then(function(err) { callback('Error: ' + (err.message || res.status)); });
         }).catch(function(e) {
           callback('Error: ' + e.message);
