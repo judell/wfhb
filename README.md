@@ -30,7 +30,7 @@ The token is stored in your browser's localStorage. You only need to do this onc
 2. The app loads current state from `excluded.json` in this repo, and events from the database.
 3. Review the four tabs:
 
-   - **Sources** — All sources are included by default. Uncheck any source to exclude all its events from your viewer. Excluded sources appear dimmed at the bottom of the list.
+   - **Sources** — All sources are included by default. Uncheck any source to exclude all its events from your viewer. Excluded sources appear dimmed.
 
    - **New** — Events added since your last review. If **Require approval** is on, these are hidden from the viewer until you click **Mark all reviewed**. If off, they show in the viewer immediately and this tab is just informational.
 
@@ -38,7 +38,7 @@ The token is stored in your browser's localStorage. You only need to do this onc
 
    - **Rejected** — Events you've rejected. Click **Restore** to bring one back.
 
-4. Click **Save choices** to push your choices to GitHub. Changes go live in about a minute.
+4. Click **Save choices** to push your choices to GitHub. Changes take effect immediately.
 
 ## Approval modes
 
