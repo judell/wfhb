@@ -1,7 +1,5 @@
 {
-  "excludedSources": [
-    "Libcal Iub 1228"
-  ],
+  "excludedSources": [],
   "rejectedEvents": [
     "20260403T153000Z-2214393@events.iu.edu",
     "20260404T040000Z-2165397@events.iu.edu__20260404",
