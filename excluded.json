@@ -2,12 +2,20 @@
   "excludedSources": [
     "Cardinal Spirits",
     "First United Church",
+    "IU Athletics",
     "IU Jacobs School of Music"
   ],
   "rejectedEvents": [
     "20260403T153000Z-2214393@events.iu.edu",
+    "20260404T200000Z-2234234@events.iu.edu",
+    "260404J5mh81PbQES7uh2dcq8D0w",
+    "6414e074799e057a77b854931357fd32@ticketmaster.com",
     "90b1ce65aec0084af34620abe79fdcc4@events.in.gov",
-    "ai1ec-147853-94587@wfhb.org"
+    "MEC-30646b8af3040799068eab9f75f0efe4@browncounty.com",
+    "MEC-e61bf0b7496de50a85ca1a91884a009d@browncounty.com__20260404",
+    "ai1ec-147853-94587@wfhb.org",
+    "ai1ec-147883-94630@wfhb.org",
+    "c94da99298051f7e2163fb615d2c15b9@iuhoosiers.com"
   ],
   "lastReviewed": "2026-04-04T05:18:38.944Z",
   "requireApproval": true
