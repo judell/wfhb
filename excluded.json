@@ -1,7 +1,5 @@
 {
-  "excludedSources": [
-    "Art Sanctuary of Indiana"
-  ],
+  "excludedSources": [],
   "rejectedEvents": [
     "20260403T153000Z-2214393@events.iu.edu",
     "90b1ce65aec0084af34620abe79fdcc4@events.in.gov",
