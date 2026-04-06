@@ -58,6 +58,3 @@ The token is stored in your browser's localStorage. You only need to do this onc
 - **Click the info icon** (circled i) on any event to see its full description before deciding.
 - **Excluded events age out.** Once an excluded event's date passes, it drops out of the results automatically.
 
-## See it in action
-
-https://github.com/user-attachments/assets/549d3b26-d7dd-4906-b497-9d2f0761e38f
