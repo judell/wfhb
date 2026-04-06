@@ -2,16 +2,11 @@
   "excludedSources": [
     "Cardinal Spirits",
     "First United Church",
-    "Hard Truth Distilling Co.",
     "IU Athletics",
     "IU Jacobs School of Music"
   ],
-  "excludedCategories": [
-    "Sports / Fitness"
-  ],
-  "excludedEvents": [
-    "ai1ec-148002-94707@wfhb.org"
-  ],
+  "excludedCategories": [],
+  "excludedEvents": [],
   "lastReviewed": "2026-04-04T05:18:38.944Z",
   "requireApproval": true
 }
