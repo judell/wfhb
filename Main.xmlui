@@ -1,4 +1,4 @@
-<App name="WFHB Event Moderator" var.tab="{'sources'}" var.refreshKey="{0}" var.newLimit="{50}" var.visibleLimit="{50}" var.rejectedLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
+<App name="WFHB Event Moderator" var.refreshKey="{0}" var.newLimit="{50}" var.visibleLimit="{50}" var.excludedEventsLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
 
   <DataSource
     id="events"
@@ -116,150 +116,160 @@
     <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" animation="fadeout" animationOptions="{{ duration: 3000, delay: 1000, fillMode: 'forwards' }}" />
     <ChangeListener listenTo="{publishStatus}" debounceWaitInMs="{4000}" onDidChange="() => { if (publishStatus) publishStatus = '' }" />
 
-    <!-- Tab bar -->
-    <HStack gap="$space-2" wrapContent="true">
-      <Button
-        label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}"
-        variant="{tab === 'sources' ? 'solid' : 'outlined'}"
-        onClick="tab = 'sources'"
-      />
-      <Button
-        label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length : 0) + ')'}"
-        variant="{tab === 'new' ? 'solid' : 'outlined'}"
-        onClick="tab = 'new'; newLimit = 50"
-      />
-      <Button
-        label="{'Visible (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length : 0) + ')'}"
-        variant="{tab === 'visible' ? 'solid' : 'outlined'}"
-        onClick="tab = 'visible'; visibleLimit = 50"
-      />
-      <Button
-        label="{'Rejected (' + (events.value ? window.getRejectedEvents(events.value, refreshKey).length : 0) + ')'}"
-        variant="{tab === 'rejected' ? 'solid' : 'outlined'}"
-        onClick="tab = 'rejected'; rejectedLimit = 50"
-      />
-    </HStack>
+    <Tabs tabAlignment="stretch" onDidChange="(idx) => { if (idx === 2) { newLimit = 50 } else if (idx === 3) { visibleLimit = 50 } else if (idx === 4) { excludedEventsLimit = 50 } }">
+      <property name="headerTemplate">
+        <VStack horizontalAlignment="center" gap="0">
+          <Text value="{$header.label.split('(')[0].trim()}" fontSize="$fontSize-sm" fontWeight="600" />
+          <Text when="{$header.label.indexOf('(') >= 0}" value="{'(' + $header.label.split('(')[1]}" fontSize="$fontSize-xs" color="$color-text-secondary" />
+        </VStack>
+      </property>
 
-    <!-- SOURCES TAB -->
-    <VStack when="{tab === 'sources'}" gap="$space-2">
-      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
-      <Items data="{window.mergeSourceExclusions(sourceNames.value, refreshKey)}">
-        <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
-          <Checkbox
-            initialValue="{!$item.excluded}"
-            onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
+      <!-- SOURCES TAB -->
+      <TabItem label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
+          <Items data="{window.mergeSourceExclusions(sourceNames.value, refreshKey)}">
+            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
+              <Checkbox
+                initialValue="{!$item.excluded}"
+                onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
+              />
+              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
+            </HStack>
+          </Items>
+        </VStack>
+      </TabItem>
+
+      <!-- CATEGORIES TAB -->
+      <TabItem label="{'Categories (' + window.getExcludedCategoryCount(events.value, refreshKey) + ' excluded)'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All categories included by default. Uncheck to exclude a category from the viewer." />
+          <Items data="{window.mergeCategoryExclusions(events.value, refreshKey)}">
+            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
+              <Checkbox
+                initialValue="{!$item.excluded}"
+                onDidChange="() => { window.toggleCategory($item.name); refreshKey = refreshKey + 1 }"
+              />
+              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
+            </HStack>
+          </Items>
+        </VStack>
+      </TabItem>
+
+      <!-- NEW TAB -->
+      <TabItem label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length : 0) + ')'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <HStack verticalAlignment="center" gap="$space-3">
+            <Button
+              when="{window.getRequireApproval()}"
+              label="Mark all reviewed"
+              variant="outlined"
+              size="sm"
+              enabled="{events.value && window.getNewEvents(events.value, refreshKey).length > 0}"
+              onClick="confirmReviewDialog.open()"
+            />
+            <Text when="{window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Last reviewed: ' + window.formatDateTime(window.getLastReviewed(), false)}" />
+            <Text when="{!window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="Not yet reviewed." />
+            <Text when="{!window.getRequireApproval()}" fontSize="$fontSize-sm" color="$color-text-tertiary" value="(New events show in viewer immediately. Enable approval in Settings to require review.)" />
+          </HStack>
+          <Text when="{window.getLastReviewed() && events.value && window.getNewEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No new events since last review." />
+          <Items data="{events.value ? window.paginate(window.getNewEvents(events.value, refreshKey), newLimit) : []}">
+            <Card padding="$space-3" marginBottom="$space-2">
+              <VStack gap="$space-1">
+                <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+                <Link when="{$item.url}" to="{$item.url}" target="_blank">
+                  <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
+                </Link>
+                <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
+                <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+                <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <Text
+                  when="{$item.description || $item.image_url}"
+                  fontSize="$fontSize-sm"
+                  color="$color-text-secondary"
+                  cursor="pointer"
+                  onClick="detailDialog.open($item)"
+                  value="{window.getSnippet($item.description) + ' \u24d8'}"
+                />
+                <HStack gap="$space-2" marginTop="$space-2">
+                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                </HStack>
+              </VStack>
+            </Card>
+          </Items>
+          <Button
+            when="{events.value && window.getNewEvents(events.value, refreshKey).length > newLimit}"
+            label="{'Show more (showing ' + newLimit + ' of ' + window.getNewEvents(events.value, refreshKey).length + ')'}"
+            variant="outlined"
+            onClick="newLimit = newLimit + 50"
           />
-          <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
-        </HStack>
-      </Items>
-    </VStack>
+        </VStack>
+      </TabItem>
 
-    <!-- NEW TAB -->
-    <VStack when="{tab === 'new'}" gap="$space-2">
-      <HStack verticalAlignment="center" gap="$space-3">
-        <Button
-          when="{window.getRequireApproval()}"
-          label="Mark all reviewed"
-          variant="outlined"
-          size="sm"
-          enabled="{events.value && window.getNewEvents(events.value, refreshKey).length > 0}"
-          onClick="confirmReviewDialog.open()"
-        />
-        <Text when="{window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{'Last reviewed: ' + window.formatDateTime(window.getLastReviewed(), false)}" />
-        <Text when="{!window.getLastReviewed()}" fontSize="$fontSize-sm" color="$color-text-secondary" value="Not yet reviewed." />
-        <Text when="{!window.getRequireApproval()}" fontSize="$fontSize-sm" color="$color-text-tertiary" value="(New events show in viewer immediately. Enable approval in Settings to require review.)" />
-      </HStack>
-      <Text when="{window.getLastReviewed() && events.value && window.getNewEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No new events since last review." />
-      <Items data="{events.value ? window.paginate(window.getNewEvents(events.value, refreshKey), newLimit) : []}">
-        <Card padding="$space-3" marginBottom="$space-2">
-          <VStack gap="$space-1">
-            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
-            <Link when="{$item.url}" to="{$item.url}" target="_blank">
-              <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
-            </Link>
-            <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
-            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
-            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
-            <Text
-              when="{$item.description || $item.image_url}"
-              fontSize="$fontSize-sm"
-              color="$color-text-secondary"
-              cursor="pointer"
-              onClick="detailDialog.open($item)"
-              value="{window.getSnippet($item.description) + ' \u24d8'}"
-            />
-            <HStack gap="$space-2" marginTop="$space-2">
-              <Button label="Reject" variant="outlined" size="sm" onClick="() => { window.rejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
-            </HStack>
-          </VStack>
-        </Card>
-      </Items>
-      <Button
-        when="{events.value && window.getNewEvents(events.value, refreshKey).length > newLimit}"
-        label="{'Show more (showing ' + newLimit + ' of ' + window.getNewEvents(events.value, refreshKey).length + ')'}"
-        variant="outlined"
-        onClick="newLimit = newLimit + 50"
-      />
-    </VStack>
+      <!-- VISIBLE TAB -->
+      <TabItem label="{'Included (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length : 0) + ')'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="Events that will appear in the viewer. Exclude individual events to hide them." />
+          <Items data="{events.value ? window.paginate(window.getVisibleEvents(events.value, refreshKey), visibleLimit) : []}">
+            <Card padding="$space-3" marginBottom="$space-2">
+              <VStack gap="$space-1">
+                <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+                <Link when="{$item.url}" to="{$item.url}" target="_blank">
+                  <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
+                </Link>
+                <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
+                <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+                <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <Text
+                  when="{$item.description || $item.image_url}"
+                  fontSize="$fontSize-sm"
+                  color="$color-text-secondary"
+                  cursor="pointer"
+                  onClick="detailDialog.open($item)"
+                  value="{window.getSnippet($item.description) + ' \u24d8'}"
+                />
+                <HStack gap="$space-2" marginTop="$space-2">
+                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                </HStack>
+              </VStack>
+            </Card>
+          </Items>
+          <Button
+            when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > visibleLimit}"
+            label="Show more"
+            variant="outlined"
+            onClick="visibleLimit = visibleLimit + 50"
+          />
+        </VStack>
+      </TabItem>
 
-    <!-- VISIBLE TAB -->
-    <VStack when="{tab === 'visible'}" gap="$space-2">
-      <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="Events that will appear in the viewer. Reject individual events to hide them." />
-      <Items data="{events.value ? window.paginate(window.getVisibleEvents(events.value, refreshKey), visibleLimit) : []}">
-        <Card padding="$space-3" marginBottom="$space-2">
-          <VStack gap="$space-1">
-            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
-            <Link when="{$item.url}" to="{$item.url}" target="_blank">
-              <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
-            </Link>
-            <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
-            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
-            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
-            <Text
-              when="{$item.description || $item.image_url}"
-              fontSize="$fontSize-sm"
-              color="$color-text-secondary"
-              cursor="pointer"
-              onClick="detailDialog.open($item)"
-              value="{window.getSnippet($item.description) + ' \u24d8'}"
-            />
-            <HStack gap="$space-2" marginTop="$space-2">
-              <Button label="Reject" variant="outlined" size="sm" onClick="() => { window.rejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
-            </HStack>
-          </VStack>
-        </Card>
-      </Items>
-      <Button
-        when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > visibleLimit}"
-        label="Show more"
-        variant="outlined"
-        onClick="visibleLimit = visibleLimit + 50"
-      />
-    </VStack>
+      <!-- REJECTED TAB -->
+      <TabItem label="{'Excluded Events (' + (events.value ? window.getExcludedEvents(events.value, refreshKey).length : 0) + ')'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text when="{events.value && window.getExcludedEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No excluded events." />
+          <Items data="{events.value ? window.paginate(window.getExcludedEvents(events.value, refreshKey), excludedEventsLimit) : []}">
+            <Card padding="$space-3" marginBottom="$space-2">
+              <VStack gap="$space-1">
+                <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
+                <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
+                <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
+                <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <HStack gap="$space-2" marginTop="$space-2">
+                  <Button label="Include" variant="outlined" size="sm" onClick="() => { window.includeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                </HStack>
+              </VStack>
+            </Card>
+          </Items>
+          <Button
+            when="{events.value && window.getExcludedEvents(events.value, refreshKey).length > excludedEventsLimit}"
+            label="{'Show more (showing ' + excludedEventsLimit + ' of ' + window.getExcludedEvents(events.value, refreshKey).length + ')'}"
+            variant="outlined"
+            onClick="excludedEventsLimit = excludedEventsLimit + 50"
+          />
+        </VStack>
+      </TabItem>
 
-    <!-- REJECTED TAB -->
-    <VStack when="{tab === 'rejected'}" gap="$space-2">
-      <Text when="{events.value && window.getRejectedEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No rejected events." />
-      <Items data="{events.value ? window.paginate(window.getRejectedEvents(events.value, refreshKey), rejectedLimit) : []}">
-        <Card padding="$space-3" marginBottom="$space-2">
-          <VStack gap="$space-1">
-            <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
-            <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
-            <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
-            <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
-            <HStack gap="$space-2" marginTop="$space-2">
-              <Button label="Restore" variant="outlined" size="sm" onClick="() => { window.unrejectEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
-            </HStack>
-          </VStack>
-        </Card>
-      </Items>
-      <Button
-        when="{events.value && window.getRejectedEvents(events.value, refreshKey).length > rejectedLimit}"
-        label="{'Show more (showing ' + rejectedLimit + ' of ' + window.getRejectedEvents(events.value, refreshKey).length + ')'}"
-        variant="outlined"
-        onClick="rejectedLimit = rejectedLimit + 50"
-      />
-    </VStack>
+    </Tabs>
 
   </VStack>
 </App>

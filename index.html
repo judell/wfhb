@@ -23,7 +23,7 @@
       // --- Moderation state: in-memory, loaded from excluded.json on startup ---
       // Model: exclude sources + reject individual events (by source_uid)
       // Everything from included sources that isn't rejected → shown in viewer
-      var _state = { excludedSources: [], rejectedEvents: {}, lastReviewed: null, requireApproval: false };
+      var _state = { excludedSources: [], excludedCategories: [], excludedEvents: {}, lastReviewed: null, requireApproval: false };
 
       // Load state from excluded.json via GitHub API (no CDN caching)
       try {
@@ -35,9 +35,10 @@
           var apiResult = JSON.parse(stateXhr.responseText);
           var loaded = JSON.parse(decodeURIComponent(escape(atob(apiResult.content))));
           _state.excludedSources = loaded.excludedSources || [];
+          _state.excludedCategories = loaded.excludedCategories || [];
           var rejObj = {};
-          (loaded.rejectedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
-          _state.rejectedEvents = rejObj;
+          (loaded.excludedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
+          _state.excludedEvents = rejObj;
           _state.lastReviewed = loaded.lastReviewed || null;
           _state.requireApproval = !!loaded.requireApproval;
         }
@@ -65,24 +66,43 @@
         }
       };
 
-      window.rejectEvent = function(sourceUid) {
-        const s = getState();
-        s.rejectedEvents[sourceUid] = true;
+      window.getExcludedCategories = function() {
+        return getState().excludedCategories;
       };
 
-      window.unrejectEvent = function(sourceUid) {
-        const s = getState();
-        delete s.rejectedEvents[sourceUid];
+      window.isCategoryExcluded = function(category) {
+        return getState().excludedCategories.indexOf(category) !== -1;
       };
 
-      window.isRejected = function(sourceUid) {
-        return !!getState().rejectedEvents[sourceUid];
+      window.toggleCategory = function(category) {
+        const s = getState();
+        const idx = s.excludedCategories.indexOf(category);
+        if (idx === -1) {
+          s.excludedCategories.push(category);
+        } else {
+          s.excludedCategories.splice(idx, 1);
+        }
+      };
+
+      window.excludeEvent = function(sourceUid) {
+        const s = getState();
+        s.excludedEvents[sourceUid] = true;
+      };
+
+      window.includeEvent = function(sourceUid) {
+        const s = getState();
+        delete s.excludedEvents[sourceUid];
+      };
+
+      window.isExcludedEvent = function(sourceUid) {
+        return !!getState().excludedEvents[sourceUid];
       };
 
       // Change detection: snapshot on load, compare current state
       var _savedSnapshot = JSON.stringify([
         _state.excludedSources.slice().sort(),
-        Object.keys(_state.rejectedEvents).sort(),
+        _state.excludedCategories.slice().sort(),
+        Object.keys(_state.excludedEvents).sort(),
         _state.lastReviewed,
         _state.requireApproval
       ]);
@@ -90,7 +110,8 @@
       window.hasUnsavedChanges = function(_tick) {
         return JSON.stringify([
           _state.excludedSources.slice().sort(),
-          Object.keys(_state.rejectedEvents).sort(),
+          _state.excludedCategories.slice().sort(),
+          Object.keys(_state.excludedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ]) !== _savedSnapshot;
@@ -100,7 +121,8 @@
         const saved = JSON.parse(_savedSnapshot);
         const cur = [
           _state.excludedSources.slice().sort(),
-          Object.keys(_state.rejectedEvents).sort(),
+          _state.excludedCategories.slice().sort(),
+          Object.keys(_state.excludedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ];
@@ -109,19 +131,23 @@
         const removedSources = saved[0].filter(function(s) { return cur[0].indexOf(s) === -1; });
         if (addedSources.length) parts.push(addedSources.length + ' source' + (addedSources.length > 1 ? 's' : '') + ' excluded');
         if (removedSources.length) parts.push(removedSources.length + ' source' + (removedSources.length > 1 ? 's' : '') + ' re-included');
-        const addedRej = cur[1].filter(function(s) { return saved[1].indexOf(s) === -1; });
-        const removedRej = saved[1].filter(function(s) { return cur[1].indexOf(s) === -1; });
-        if (addedRej.length) parts.push(addedRej.length + ' event' + (addedRej.length > 1 ? 's' : '') + ' rejected');
-        if (removedRej.length) parts.push(removedRej.length + ' event' + (removedRej.length > 1 ? 's' : '') + ' restored');
-        if (cur[2] !== saved[2]) parts.push('review timestamp updated');
-        if (cur[3] !== saved[3]) parts.push('approval setting changed');
+        const addedCats = cur[1].filter(function(s) { return saved[1].indexOf(s) === -1; });
+        const removedCats = saved[1].filter(function(s) { return cur[1].indexOf(s) === -1; });
+        if (addedCats.length) parts.push(addedCats.length + ' categor' + (addedCats.length > 1 ? 'ies' : 'y') + ' excluded');
+        if (removedCats.length) parts.push(removedCats.length + ' categor' + (removedCats.length > 1 ? 'ies' : 'y') + ' re-included');
+        const addedRej = cur[2].filter(function(s) { return saved[2].indexOf(s) === -1; });
+        const removedRej = saved[2].filter(function(s) { return cur[2].indexOf(s) === -1; });
+        if (addedRej.length) parts.push(addedRej.length + ' event' + (addedRej.length > 1 ? 's' : '') + ' excluded');
+        if (removedRej.length) parts.push(removedRej.length + ' event' + (removedRej.length > 1 ? 's' : '') + ' re-included');
+        if (cur[3] !== saved[3]) parts.push('review timestamp updated');
+        if (cur[4] !== saved[4]) parts.push('approval setting changed');
         return parts.join(', ');
       };
 
       window.markSaved = function() {
         _savedSnapshot = JSON.stringify([
           _state.excludedSources.slice().sort(),
-          Object.keys(_state.rejectedEvents).sort(),
+          Object.keys(_state.excludedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ]);
@@ -149,9 +175,12 @@
         const s = getState();
         const excSet = {};
         s.excludedSources.forEach(function(src) { excSet[src] = true; });
+        const excCatSet = {};
+        s.excludedCategories.forEach(function(cat) { excCatSet[cat] = true; });
         return (events || []).filter(function(e) {
           if (excSet[e.source]) return false;
-          if (s.rejectedEvents[e.source_uid]) return false;
+          if (e.category && excCatSet[e.category]) return false;
+          if (s.excludedEvents[e.source_uid]) return false;
           return (e.created_at || e.start_time) > lr;
         });
       };
@@ -165,10 +194,13 @@
         const s = getState();
         const excSet = {};
         s.excludedSources.forEach(function(src) { excSet[src] = true; });
+        const excCatSet = {};
+        s.excludedCategories.forEach(function(cat) { excCatSet[cat] = true; });
         const visible = [], rejected = [];
         (events || []).forEach(function(e) {
           if (excSet[e.source]) return;
-          if (s.rejectedEvents[e.source_uid]) rejected.push(e);
+          if (e.category && excCatSet[e.category]) return;
+          if (s.excludedEvents[e.source_uid]) rejected.push(e);
           else visible.push(e);
         });
         _cached = {
@@ -185,7 +217,7 @@
         return classify(events, _tick).visible;
       };
 
-      window.getRejectedEvents = function(events, _tick) {
+      window.getExcludedEvents = function(events, _tick) {
         return classify(events, _tick).rejected;
       };
 
@@ -205,6 +237,22 @@
         return sourceNames.map(function(s) {
           return { name: s.name, event_count: s.event_count, excluded: window.isSourceExcluded(s.name) };
         });
+      };
+
+      // Merge category data with exclusion state
+      window.mergeCategoryExclusions = function(events, _tick) {
+        if (!events) return [];
+        var counts = {};
+        events.forEach(function(e) {
+          if (e.category) counts[e.category] = (counts[e.category] || 0) + 1;
+        });
+        return Object.keys(counts).sort().map(function(cat) {
+          return { name: cat, event_count: counts[cat], excluded: window.isCategoryExcluded(cat) };
+        });
+      };
+
+      window.getExcludedCategoryCount = function(events, _tick) {
+        return getState().excludedCategories.length;
       };
 
       // GitHub token management
@@ -228,7 +276,8 @@
         const s = getState();
         const data = {
           excludedSources: s.excludedSources.sort(),
-          rejectedEvents: Object.keys(s.rejectedEvents).sort(),
+          excludedCategories: s.excludedCategories.sort(),
+          excludedEvents: Object.keys(s.excludedEvents).sort(),
           lastReviewed: s.lastReviewed || null,
           requireApproval: s.requireApproval
         };
