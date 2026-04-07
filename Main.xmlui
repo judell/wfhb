@@ -1,4 +1,4 @@
-<App name="WFHB Event Moderator" var.refreshKey="{0}" var.newLimit="{50}" var.visibleLimit="{50}" var.excludedEventsLimit="{50}" var.publishStatus="{''}" var.fileSha="{''}">
+<App name="WFHB Event Moderator" var.refreshKey="{0}" var.newPage="{0}" var.visiblePage="{0}" var.excludedPage="{0}" var.pageSize="{50}" var.publishStatus="{''}" var.fileSha="{''}">
 
   <DataSource
     id="events"
@@ -53,7 +53,7 @@
   </ModalDialog>
 
   <!-- Settings dialog for GitHub token -->
-  <ModalDialog id="settingsDialog" title="Settings" var.tokenInput="{window.getGitHubToken()}">
+  <ModalDialog id="settingsDialog" title="Settings" var.tokenInput="{window.getGitHubToken()}" minWidth="min(500px, 90vw)">
     <VStack gap="$space-3">
       <Text fontSize="$fontSize-sm" value="GitHub personal access token (needs repo scope):" />
       <TextBox
@@ -71,6 +71,9 @@
       <HStack gap="$space-2">
         <Button label="Save" onClick="() => { window.setGitHubToken(tokenInput); settingsDialog.close() }" />
         <Button label="Cancel" variant="outlined" onClick="settingsDialog.close()" />
+      </HStack>
+      <HStack gap="$space-2" marginTop="$space-2">
+        <Button label="Reset last reviewed (−24h)" variant="outlined" size="sm" onClick="() => { window.setLastReviewed(new Date(Date.now() - 24*60*60*1000).toISOString()); refreshKey = refreshKey + 1; settingsDialog.close() }" />
       </HStack>
     </VStack>
   </ModalDialog>
@@ -93,9 +96,9 @@
   <!-- Confirm mark reviewed -->
   <ModalDialog id="confirmReviewDialog" title="Confirm">
     <VStack gap="$space-3">
-      <Text fontSize="$fontSize-sm" value="Mark all new events as reviewed? This will make them visible in the viewer." />
+      <Text fontSize="$fontSize-sm" value="Mark all new events as included? This will make them visible in the viewer." />
       <HStack gap="$space-2">
-        <Button label="Yes, mark reviewed" onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1; confirmReviewDialog.close() }" />
+        <Button label="Yes, mark all included" onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1; confirmReviewDialog.close() }" />
         <Button label="Cancel" variant="outlined" onClick="confirmReviewDialog.close()" />
       </HStack>
     </VStack>
@@ -116,7 +119,7 @@
     <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" animation="fadeout" animationOptions="{{ duration: 3000, delay: 1000, fillMode: 'forwards' }}" />
     <ChangeListener listenTo="{publishStatus}" debounceWaitInMs="{4000}" onDidChange="() => { if (publishStatus) publishStatus = '' }" />
 
-    <Tabs tabAlignment="stretch" onDidChange="(idx) => { if (idx === 2) { newLimit = 50 } else if (idx === 3) { visibleLimit = 50 } else if (idx === 4) { excludedEventsLimit = 50 } }">
+    <Tabs tabAlignment="stretch" onDidChange="(idx) => { if (idx === 2) { newPage = 0 } else if (idx === 3) { visiblePage = 0 } else if (idx === 4) { excludedPage = 0 } }">
       <property name="headerTemplate">
         <VStack horizontalAlignment="center" gap="0">
           <Text value="{$header.label.split('(')[0].trim()}" fontSize="$fontSize-sm" fontWeight="600" />
@@ -157,12 +160,12 @@
       </TabItem>
 
       <!-- NEW TAB -->
-      <TabItem label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length : 0) + ')'}">
+      <TabItem label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length + (window.totalOccurrences(window.getNewEvents(events.value, refreshKey)) !== window.getNewEvents(events.value, refreshKey).length ? ' / ' + window.totalOccurrences(window.getNewEvents(events.value, refreshKey)) + ' occurrences' : '') : 0) + ')'}">
         <VStack gap="$space-2" padding="$space-2 0">
           <HStack verticalAlignment="center" gap="$space-3">
             <Button
               when="{window.getRequireApproval()}"
-              label="Mark all reviewed"
+              label="Mark all included"
               variant="outlined"
               size="sm"
               enabled="{events.value && window.getNewEvents(events.value, refreshKey).length > 0}"
@@ -173,7 +176,16 @@
             <Text when="{!window.getRequireApproval()}" fontSize="$fontSize-sm" color="$color-text-tertiary" value="(New events show in viewer immediately. Enable approval in Settings to require review.)" />
           </HStack>
           <Text when="{window.getLastReviewed() && events.value && window.getNewEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No new events since last review." />
-          <Items data="{events.value ? window.paginate(window.getNewEvents(events.value, refreshKey), newLimit) : []}">
+          <Pagination
+            when="{events.value && window.getNewEvents(events.value, refreshKey).length > pageSize}"
+            itemCount="{window.getNewEvents(events.value, refreshKey).length}"
+            pageSize="{pageSize}"
+            pageIndex="{newPage}"
+            onPageDidChange="(page) => { newPage = page }"
+            maxVisiblePages="{5}"
+            showPageSizeSelector="false"
+          />
+          <Items data="{events.value ? window.pageSlice(window.getNewEvents(events.value, refreshKey), newPage, pageSize) : []}">
             <Card padding="$space-3" marginBottom="$space-2">
               <VStack gap="$space-1">
                 <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
@@ -183,6 +195,7 @@
                 <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
                 <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
                 <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <Text when="{$item._occurrences}" fontSize="$fontSize-xs" color="$color-text-tertiary" value="{'Recurring (' + $item._occurrences + ' occurrences)'}" />
                 <Text
                   when="{$item.description || $item.image_url}"
                   fontSize="$fontSize-sm"
@@ -192,25 +205,28 @@
                   value="{window.getSnippet($item.description) + ' \u24d8'}"
                 />
                 <HStack gap="$space-2" marginTop="$space-2">
-                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                  <Button label="Include" size="sm" onClick="() => { window.includeGroup($item); window.reviewGroup($item); refreshKey = refreshKey + 1 }" />
                 </HStack>
               </VStack>
             </Card>
           </Items>
-          <Button
-            when="{events.value && window.getNewEvents(events.value, refreshKey).length > newLimit}"
-            label="{'Show more (showing ' + newLimit + ' of ' + window.getNewEvents(events.value, refreshKey).length + ')'}"
-            variant="outlined"
-            onClick="newLimit = newLimit + 50"
-          />
         </VStack>
       </TabItem>
 
       <!-- VISIBLE TAB -->
-      <TabItem label="{'Included (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length : 0) + ')'}">
+      <TabItem label="{'Included (' + (events.value ? window.getVisibleEvents(events.value, refreshKey).length + (window.totalOccurrences(window.getVisibleEvents(events.value, refreshKey)) !== window.getVisibleEvents(events.value, refreshKey).length ? ' / ' + window.totalOccurrences(window.getVisibleEvents(events.value, refreshKey)) + ' occurrences' : '') : 0) + ')'}">
         <VStack gap="$space-2" padding="$space-2 0">
           <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="Events that will appear in the viewer. Exclude individual events to hide them." />
-          <Items data="{events.value ? window.paginate(window.getVisibleEvents(events.value, refreshKey), visibleLimit) : []}">
+          <Pagination
+            when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > pageSize}"
+            itemCount="{window.getVisibleEvents(events.value, refreshKey).length}"
+            pageSize="{pageSize}"
+            pageIndex="{visiblePage}"
+            onPageDidChange="(page) => { visiblePage = page }"
+            maxVisiblePages="{5}"
+            showPageSizeSelector="false"
+          />
+          <Items data="{events.value ? window.pageSlice(window.getVisibleEvents(events.value, refreshKey), visiblePage, pageSize) : []}">
             <Card padding="$space-3" marginBottom="$space-2">
               <VStack gap="$space-1">
                 <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
@@ -220,6 +236,7 @@
                 <Text when="{!$item.url}" fontWeight="600" value="{$item.title}" />
                 <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
                 <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <Text when="{$item._occurrences}" fontSize="$fontSize-xs" color="$color-text-tertiary" value="{'Recurring (' + $item._occurrences + ' occurrences)'}" />
                 <Text
                   when="{$item.description || $item.image_url}"
                   fontSize="$fontSize-sm"
@@ -229,43 +246,41 @@
                   value="{window.getSnippet($item.description) + ' \u24d8'}"
                 />
                 <HStack gap="$space-2" marginTop="$space-2">
-                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeGroup($item); refreshKey = refreshKey + 1 }" />
                 </HStack>
               </VStack>
             </Card>
           </Items>
-          <Button
-            when="{events.value && window.getVisibleEvents(events.value, refreshKey).length > visibleLimit}"
-            label="Show more"
-            variant="outlined"
-            onClick="visibleLimit = visibleLimit + 50"
-          />
         </VStack>
       </TabItem>
 
       <!-- REJECTED TAB -->
-      <TabItem label="{'Excluded Events (' + (events.value ? window.getExcludedEvents(events.value, refreshKey).length : 0) + ')'}">
+      <TabItem label="{'Excluded Events (' + (events.value ? window.getExcludedEvents(events.value, refreshKey).length + (window.totalOccurrences(window.getExcludedEvents(events.value, refreshKey)) !== window.getExcludedEvents(events.value, refreshKey).length ? ' / ' + window.totalOccurrences(window.getExcludedEvents(events.value, refreshKey)) + ' occurrences' : '') : 0) + ')'}">
         <VStack gap="$space-2" padding="$space-2 0">
           <Text when="{events.value && window.getExcludedEvents(events.value, refreshKey).length === 0}" fontSize="$fontSize-sm" color="$color-text-secondary" value="No excluded events." />
-          <Items data="{events.value ? window.paginate(window.getExcludedEvents(events.value, refreshKey), excludedEventsLimit) : []}">
+          <Pagination
+            when="{events.value && window.getExcludedEvents(events.value, refreshKey).length > pageSize}"
+            itemCount="{window.getExcludedEvents(events.value, refreshKey).length}"
+            pageSize="{pageSize}"
+            pageIndex="{excludedPage}"
+            onPageDidChange="(page) => { excludedPage = page }"
+            maxVisiblePages="{5}"
+            showPageSizeSelector="false"
+          />
+          <Items data="{events.value ? window.pageSlice(window.getExcludedEvents(events.value, refreshKey), excludedPage, pageSize) : []}">
             <Card padding="$space-3" marginBottom="$space-2">
               <VStack gap="$space-1">
                 <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="{window.formatDateTime($item.start_time, $item.all_day)}" />
                 <Text fontWeight="600" overflowMode="flow" value="{$item.title}" />
                 <Text when="{$item.location}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{$item.location}" />
                 <Text fontSize="$fontSize-sm" color="$color-text-tertiary" fontStyle="italic" value="{$item.source}" />
+                <Text when="{$item._occurrences}" fontSize="$fontSize-xs" color="$color-text-tertiary" value="{'Recurring (' + $item._occurrences + ' occurrences)'}" />
                 <HStack gap="$space-2" marginTop="$space-2">
-                  <Button label="Include" variant="outlined" size="sm" onClick="() => { window.includeEvent($item.source_uid); refreshKey = refreshKey + 1 }" />
+                  <Button label="Include" variant="outlined" size="sm" onClick="() => { window.includeGroup($item); refreshKey = refreshKey + 1 }" />
                 </HStack>
               </VStack>
             </Card>
           </Items>
-          <Button
-            when="{events.value && window.getExcludedEvents(events.value, refreshKey).length > excludedEventsLimit}"
-            label="{'Show more (showing ' + excludedEventsLimit + ' of ' + window.getExcludedEvents(events.value, refreshKey).length + ')'}"
-            variant="outlined"
-            onClick="excludedEventsLimit = excludedEventsLimit + 50"
-          />
         </VStack>
       </TabItem>
 

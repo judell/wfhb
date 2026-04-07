@@ -23,7 +23,7 @@
       // --- Moderation state: in-memory, loaded from excluded.json on startup ---
       // Model: exclude sources + reject individual events (by source_uid)
       // Everything from included sources that isn't rejected → shown in viewer
-      var _state = { excludedSources: [], excludedCategories: [], excludedEvents: {}, lastReviewed: null, requireApproval: false };
+      var _state = { excludedSources: [], excludedCategories: [], excludedEvents: {}, reviewedEvents: {}, lastReviewed: null, requireApproval: true };
 
       // Load state from excluded.json via GitHub API (no CDN caching)
       try {
@@ -39,6 +39,9 @@
           var rejObj = {};
           (loaded.excludedEvents || []).forEach(function(uid) { rejObj[uid] = true; });
           _state.excludedEvents = rejObj;
+          var revObj = {};
+          (loaded.reviewedEvents || []).forEach(function(uid) { revObj[uid] = true; });
+          _state.reviewedEvents = revObj;
           _state.lastReviewed = loaded.lastReviewed || null;
           _state.requireApproval = !!loaded.requireApproval;
         }
@@ -94,6 +97,22 @@
         delete s.excludedEvents[sourceUid];
       };
 
+      // Operate on all UIDs in a collapsed group
+      window.includeGroup = function(item) {
+        var uids = item._groupUids || [item.source_uid];
+        uids.forEach(function(uid) { window.includeEvent(uid); });
+      };
+
+      window.excludeGroup = function(item) {
+        var uids = item._groupUids || [item.source_uid];
+        uids.forEach(function(uid) { window.excludeEvent(uid); });
+      };
+
+      window.reviewGroup = function(item) {
+        var uids = item._groupUids || [item.source_uid];
+        uids.forEach(function(uid) { window.markEventReviewed(uid); });
+      };
+
       window.isExcludedEvent = function(sourceUid) {
         return !!getState().excludedEvents[sourceUid];
       };
@@ -103,6 +122,7 @@
         _state.excludedSources.slice().sort(),
         _state.excludedCategories.slice().sort(),
         Object.keys(_state.excludedEvents).sort(),
+        Object.keys(_state.reviewedEvents).sort(),
         _state.lastReviewed,
         _state.requireApproval
       ]);
@@ -112,6 +132,7 @@
           _state.excludedSources.slice().sort(),
           _state.excludedCategories.slice().sort(),
           Object.keys(_state.excludedEvents).sort(),
+          Object.keys(_state.reviewedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ]) !== _savedSnapshot;
@@ -123,6 +144,7 @@
           _state.excludedSources.slice().sort(),
           _state.excludedCategories.slice().sort(),
           Object.keys(_state.excludedEvents).sort(),
+          Object.keys(_state.reviewedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ];
@@ -139,15 +161,19 @@
         const removedRej = saved[2].filter(function(s) { return cur[2].indexOf(s) === -1; });
         if (addedRej.length) parts.push(addedRej.length + ' event' + (addedRej.length > 1 ? 's' : '') + ' excluded');
         if (removedRej.length) parts.push(removedRej.length + ' event' + (removedRej.length > 1 ? 's' : '') + ' re-included');
-        if (cur[3] !== saved[3]) parts.push('review timestamp updated');
-        if (cur[4] !== saved[4]) parts.push('approval setting changed');
+        const addedRev = cur[3].filter(function(s) { return saved[3].indexOf(s) === -1; });
+        if (addedRev.length) parts.push(addedRev.length + ' event' + (addedRev.length > 1 ? 's' : '') + ' included');
+        if (cur[4] !== saved[4]) parts.push('review timestamp updated');
+        if (cur[5] !== saved[5]) parts.push('approval setting changed');
         return parts.join(', ');
       };
 
       window.markSaved = function() {
         _savedSnapshot = JSON.stringify([
           _state.excludedSources.slice().sort(),
+          _state.excludedCategories.slice().sort(),
           Object.keys(_state.excludedEvents).sort(),
+          Object.keys(_state.reviewedEvents).sort(),
           _state.lastReviewed,
           _state.requireApproval
         ]);
@@ -161,6 +187,10 @@
         _state.requireApproval = !!val;
       };
 
+      window.markEventReviewed = function(sourceUid) {
+        _state.reviewedEvents[sourceUid] = true;
+      };
+
       window.markAllReviewed = function() {
         _state.lastReviewed = new Date().toISOString();
       };
@@ -169,20 +199,51 @@
         return _state.lastReviewed;
       };
 
+      window.setLastReviewed = function(isoString) {
+        _state.lastReviewed = isoString;
+      };
+
+      // Collapse recurring events (same title+location) into one representative per group.
+      // The representative carries _groupUids (all source_uids in the group) and _occurrences (count).
+      function collapseRecurring(events) {
+        var MIN_OCCURRENCES = 3;
+        var groups = {};
+        var order = [];
+        (events || []).forEach(function(e) {
+          var key = (e.title || '').trim().toLowerCase() + '|' + (e.location || '').trim().toLowerCase();
+          if (!groups[key]) { groups[key] = []; order.push(key); }
+          groups[key].push(e);
+        });
+        var result = [];
+        order.forEach(function(key) {
+          var g = groups[key];
+          if (g.length >= MIN_OCCURRENCES) {
+            var rep = Object.assign({}, g[0]);
+            rep._groupUids = g.map(function(e) { return e.source_uid; });
+            rep._occurrences = g.length;
+            result.push(rep);
+          } else {
+            g.forEach(function(e) { result.push(e); });
+          }
+        });
+        return result;
+      }
+
       window.getNewEvents = function(events, _tick) {
         const lr = _state.lastReviewed;
-        if (!lr) return events || [];
+        if (!lr) return collapseRecurring(events || []);
         const s = getState();
         const excSet = {};
         s.excludedSources.forEach(function(src) { excSet[src] = true; });
         const excCatSet = {};
         s.excludedCategories.forEach(function(cat) { excCatSet[cat] = true; });
-        return (events || []).filter(function(e) {
+        return collapseRecurring((events || []).filter(function(e) {
           if (excSet[e.source]) return false;
           if (e.category && excCatSet[e.category]) return false;
           if (s.excludedEvents[e.source_uid]) return false;
+          if (s.reviewedEvents[e.source_uid]) return false;
           return (e.created_at || e.start_time) > lr;
-        });
+        }));
       };
 
       // Single-pass classifier
@@ -196,12 +257,25 @@
         s.excludedSources.forEach(function(src) { excSet[src] = true; });
         const excCatSet = {};
         s.excludedCategories.forEach(function(cat) { excCatSet[cat] = true; });
-        const visible = [], rejected = [];
+        const lr = s.lastReviewed;
+        const approvalOn = s.requireApproval;
+        const visible = [], rejected = [], skippedSource = [], skippedCategory = [], skippedUnreviewed = [];
         (events || []).forEach(function(e) {
-          if (excSet[e.source]) return;
-          if (e.category && excCatSet[e.category]) return;
+          if (excSet[e.source]) { skippedSource.push(e); return; }
+          if (e.category && excCatSet[e.category]) { skippedCategory.push(e); return; }
           if (s.excludedEvents[e.source_uid]) rejected.push(e);
+          else if (approvalOn && lr && (e.created_at || e.start_time) > lr && !s.reviewedEvents[e.source_uid]) { skippedUnreviewed.push(e); return; }
           else visible.push(e);
+        });
+        window.xsTraceEvent("classify", {
+          total: (events || []).length,
+          visible: visible.length,
+          excluded: rejected.length,
+          skippedSource: skippedSource.length,
+          skippedCategory: skippedCategory.length,
+          skippedUnreviewed: skippedUnreviewed.length,
+          approvalOn: approvalOn,
+          lastReviewed: lr
         });
         _cached = {
           visible: visible,
@@ -213,12 +287,20 @@
         return _cached;
       }
 
+      // Count total occurrences across collapsed groups
+      window.totalOccurrences = function(collapsedList) {
+        if (!collapsedList) return 0;
+        var total = 0;
+        collapsedList.forEach(function(e) { total += (e._occurrences || 1); });
+        return total;
+      };
+
       window.getVisibleEvents = function(events, _tick) {
-        return classify(events, _tick).visible;
+        return collapseRecurring(classify(events, _tick).visible);
       };
 
       window.getExcludedEvents = function(events, _tick) {
-        return classify(events, _tick).rejected;
+        return collapseRecurring(classify(events, _tick).rejected);
       };
 
       window.getExcludedCount = function(events, _tick) {
@@ -229,6 +311,12 @@
 
       window.paginate = function(arr, limit) {
         return (arr || []).slice(0, limit);
+      };
+
+      window.pageSlice = function(arr, pageIndex, pageSize) {
+        if (!arr) return [];
+        var start = pageIndex * pageSize;
+        return arr.slice(start, start + pageSize);
       };
 
       // Merge source_names data with exclusion state
@@ -278,6 +366,7 @@
           excludedSources: s.excludedSources.sort(),
           excludedCategories: s.excludedCategories.sort(),
           excludedEvents: Object.keys(s.excludedEvents).sort(),
+          reviewedEvents: Object.keys(s.reviewedEvents).sort(),
           lastReviewed: s.lastReviewed || null,
           requireApproval: s.requireApproval
         };
