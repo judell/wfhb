@@ -11,13 +11,7 @@
     "Religion / Spirituality",
     "Sports / Fitness"
   ],
-  "excludedEvents": [
-    "20260401T040000Z-2176889@events.iu.edu__20260407",
-    "20260405T040000Z-2236515@events.iu.edu__20260407",
-    "20260406T040000Z-2176892@events.iu.edu__20260407",
-    "20260406T040000Z-2236728@events.iu.edu__20260407",
-    "20260406T040000Z-2240048@events.iu.edu__20260407"
-  ],
+  "excludedEvents": [],
   "reviewedEvents": [
     "20260405T040000Z-2240047@events.iu.edu__20260407",
     "20260406T040000Z-2212637@events.iu.edu__20260407",
