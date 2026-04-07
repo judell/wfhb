@@ -400,28 +400,37 @@
         return btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2) + '\n')));
       };
 
-      // PUT excluded.json to GitHub — called from getSha success/error with a callback
-      window.saveToGitHub = function(sha, callback) {
+      // Save excluded.json to GitHub with automatic retry on SHA conflict
+      window.saveToGitHub = function(sha, callback, _retries) {
+        _retries = _retries || 0;
         const token = window.getGitHubToken();
+        const url = 'https://api.github.com/repos/judell/wfhb/contents/excluded.json';
+        const headers = {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        };
         const body = {
           message: 'Update exclusions',
           content: window.buildExcludedContent()
         };
         if (sha) body.sha = sha;
-        fetch('https://api.github.com/repos/judell/wfhb/contents/excluded.json', {
-          method: 'PUT',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json',
-            'Accept': 'application/vnd.github.v3+json'
-          },
-          body: JSON.stringify(body)
-        }).then(function(res) {
-          if (res.ok) callback('Saved!');
-          else res.json().then(function(err) { callback('Error: ' + (err.message || res.status)); });
-        }).catch(function(e) {
-          callback('Error: ' + e.message);
-        });
+        fetch(url, { method: 'PUT', headers: headers, body: JSON.stringify(body) })
+          .then(function(res) {
+            if (res.ok) return callback('Saved!');
+            if (res.status === 409 && _retries < 3) {
+              // SHA conflict — re-fetch current SHA and retry
+              fetch(url, { headers: headers })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                  window.saveToGitHub(data.sha, callback, _retries + 1);
+                })
+                .catch(function(e) { callback('Error fetching SHA: ' + e.message); });
+            } else {
+              res.json().then(function(err) { callback('Error: ' + (err.message || res.status)); });
+            }
+          })
+          .catch(function(e) { callback('Error: ' + e.message); });
       };
 
       // Simple snippet
