@@ -217,6 +217,19 @@
         _state.lastReviewed = isoString;
       };
 
+      window.clearReviewedEvents = function() {
+        _state.reviewedEvents = {};
+      };
+
+      window.debugState = function() {
+        return {
+          lastReviewed: _state.lastReviewed,
+          reviewedCount: Object.keys(_state.reviewedEvents).length,
+          excludedCount: Object.keys(_state.excludedEvents).length,
+          requireApproval: _state.requireApproval
+        };
+      };
+
       // Collapse recurring events (same title+location) into one representative per group.
       // The representative carries _groupUids (all source_uids in the group) and _occurrences (count).
       function collapseRecurring(events) {

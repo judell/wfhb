@@ -73,7 +73,7 @@
         <Button label="Cancel" variant="outlined" onClick="settingsDialog.close()" />
       </HStack>
       <HStack gap="$space-2" marginTop="$space-2">
-        <Button label="Reset last reviewed (−24h)" variant="outlined" size="sm" onClick="() => { window.setLastReviewed(new Date(Date.now() - 24*60*60*1000).toISOString()); refreshKey = refreshKey + 1; settingsDialog.close() }" />
+        <Button label="Reset last reviewed (−24h)" variant="outlined" size="sm" onClick="() => { window.clearReviewedEvents(); window.setLastReviewed(new Date(Date.now() - 24*60*60*1000).toISOString()); refreshKey = refreshKey + 1; settingsDialog.close() }" />
       </HStack>
     </VStack>
   </ModalDialog>
