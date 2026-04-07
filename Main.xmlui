@@ -98,7 +98,7 @@
     <VStack gap="$space-3">
       <Text fontSize="$fontSize-sm" value="Mark all new events as included? This will make them visible in the viewer." />
       <HStack gap="$space-2">
-        <Button label="Yes, mark all included" onClick="() => { window.markAllReviewed(); refreshKey = refreshKey + 1; confirmReviewDialog.close() }" />
+        <Button label="Yes, mark all included" onClick="() => { window.markAllReviewed(events.value); refreshKey = refreshKey + 1; confirmReviewDialog.close() }" />
         <Button label="Cancel" variant="outlined" onClick="confirmReviewDialog.close()" />
       </HStack>
     </VStack>

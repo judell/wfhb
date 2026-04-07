@@ -191,8 +191,22 @@
         _state.reviewedEvents[sourceUid] = true;
       };
 
-      window.markAllReviewed = function() {
+      window.markAllReviewed = function(events) {
         _state.lastReviewed = new Date().toISOString();
+        // Also mark every current new event as reviewed by source_uid
+        if (events) {
+          var s = getState();
+          var excSet = {};
+          s.excludedSources.forEach(function(src) { excSet[src] = true; });
+          var excCatSet = {};
+          s.excludedCategories.forEach(function(cat) { excCatSet[cat] = true; });
+          (events || []).forEach(function(e) {
+            if (excSet[e.source]) return;
+            if (e.category && excCatSet[e.category]) return;
+            if (s.excludedEvents[e.source_uid]) return;
+            _state.reviewedEvents[e.source_uid] = true;
+          });
+        }
       };
 
       window.getLastReviewed = function() {
