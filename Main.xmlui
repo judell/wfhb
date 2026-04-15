@@ -119,45 +119,13 @@
     <Text when="{publishStatus}" fontSize="$fontSize-sm" color="$color-text-secondary" value="{publishStatus}" animation="fadeout" animationOptions="{{ duration: 3000, delay: 1000, fillMode: 'forwards' }}" />
     <ChangeListener listenTo="{publishStatus}" debounceWaitInMs="{4000}" onDidChange="() => { if (publishStatus) publishStatus = '' }" />
 
-    <Tabs tabAlignment="stretch" onDidChange="(idx) => { if (idx === 2) { newPage = 0 } else if (idx === 3) { visiblePage = 0 } else if (idx === 4) { excludedPage = 0 } }">
+    <Tabs tabAlignment="stretch" onDidChange="(idx) => { if (idx === 0) { newPage = 0 } else if (idx === 1) { visiblePage = 0 } else if (idx === 2) { excludedPage = 0 } }">
       <property name="headerTemplate">
         <VStack horizontalAlignment="center" gap="0">
           <Text value="{$header.label.split('(')[0].trim()}" fontSize="$fontSize-sm" fontWeight="600" />
           <Text when="{$header.label.indexOf('(') >= 0}" value="{'(' + $header.label.split('(')[1]}" fontSize="$fontSize-xs" color="$color-text-secondary" />
         </VStack>
       </property>
-
-      <!-- SOURCES TAB -->
-      <TabItem label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}">
-        <VStack gap="$space-2" padding="$space-2 0">
-          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
-          <Items data="{window.mergeSourceExclusions(sourceNames.value, refreshKey)}">
-            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
-              <Checkbox
-                initialValue="{!$item.excluded}"
-                onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
-              />
-              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
-            </HStack>
-          </Items>
-        </VStack>
-      </TabItem>
-
-      <!-- CATEGORIES TAB -->
-      <TabItem label="{'Categories (' + window.getExcludedCategoryCount(events.value, refreshKey) + ' excluded)'}">
-        <VStack gap="$space-2" padding="$space-2 0">
-          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All categories included by default. Uncheck to exclude a category from the viewer." />
-          <Items data="{window.mergeCategoryExclusions(events.value, refreshKey)}">
-            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
-              <Checkbox
-                initialValue="{!$item.excluded}"
-                onDidChange="() => { window.toggleCategory($item.name); refreshKey = refreshKey + 1 }"
-              />
-              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
-            </HStack>
-          </Items>
-        </VStack>
-      </TabItem>
 
       <!-- NEW TAB -->
       <TabItem label="{'New (' + (events.value ? window.getNewEvents(events.value, refreshKey).length + (window.totalOccurrences(window.getNewEvents(events.value, refreshKey)) !== window.getNewEvents(events.value, refreshKey).length ? ' / ' + window.totalOccurrences(window.getNewEvents(events.value, refreshKey)) + ' occurrences' : '') : 0) + ')'}">
@@ -206,6 +174,7 @@
                 />
                 <HStack gap="$space-2" marginTop="$space-2">
                   <Button label="Include" size="sm" onClick="() => { window.includeGroup($item); window.reviewGroup($item); refreshKey = refreshKey + 1 }" />
+                  <Button label="Exclude" variant="outlined" size="sm" themeColor="attention" onClick="() => { window.excludeGroup($item); refreshKey = refreshKey + 1 }" />
                 </HStack>
               </VStack>
             </Card>
@@ -246,7 +215,7 @@
                   value="{window.getSnippet($item.description) + ' \u24d8'}"
                 />
                 <HStack gap="$space-2" marginTop="$space-2">
-                  <Button label="Exclude" variant="outlined" size="sm" onClick="() => { window.excludeGroup($item); refreshKey = refreshKey + 1 }" />
+                  <Button label="Exclude" variant="outlined" size="sm" themeColor="attention" onClick="() => { window.excludeGroup($item); refreshKey = refreshKey + 1 }" />
                 </HStack>
               </VStack>
             </Card>
@@ -280,6 +249,38 @@
                 </HStack>
               </VStack>
             </Card>
+          </Items>
+        </VStack>
+      </TabItem>
+
+      <!-- SOURCES TAB -->
+      <TabItem label="{'Sources (' + window.getExcludedCount(events.value, refreshKey) + ' excluded)'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All sources included by default. Uncheck to exclude a source from the viewer." />
+          <Items data="{window.mergeSourceExclusions(sourceNames.value, refreshKey)}">
+            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
+              <Checkbox
+                initialValue="{!$item.excluded}"
+                onDidChange="() => { window.toggleSource($item.name); refreshKey = refreshKey + 1 }"
+              />
+              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
+            </HStack>
+          </Items>
+        </VStack>
+      </TabItem>
+
+      <!-- CATEGORIES TAB -->
+      <TabItem label="{'Categories (' + window.getExcludedCategoryCount(events.value, refreshKey) + ' excluded)'}">
+        <VStack gap="$space-2" padding="$space-2 0">
+          <Text fontSize="$fontSize-sm" color="$color-text-secondary" value="All categories included by default. Uncheck to exclude a category from the viewer." />
+          <Items data="{window.mergeCategoryExclusions(events.value, refreshKey)}">
+            <HStack verticalAlignment="center" gap="$space-2" padding="$space-1 0" opacity="{$item.excluded ? 0.5 : 1}">
+              <Checkbox
+                initialValue="{!$item.excluded}"
+                onDidChange="() => { window.toggleCategory($item.name); refreshKey = refreshKey + 1 }"
+              />
+              <Text fontSize="$fontSize-sm" fontWeight="{$item.excluded ? '400' : '500'}" value="{$item.name + ' (' + $item.event_count + ')'}" />
+            </HStack>
           </Items>
         </VStack>
       </TabItem>
